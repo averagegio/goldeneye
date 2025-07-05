@@ -1,8 +1,8 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'Goldeneye App',
-  description: 'Created with Next.js',
+  title: 'GoldenEye',
+  description: 'For England, James?',
 }
 
 export default function RootLayout({ children }) {
