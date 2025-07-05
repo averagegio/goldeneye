@@ -18,7 +18,13 @@ export default function Home() {
         </h1>
       </div>
 
-      <div className="gif-overlay fixed inset-0 z-0 mix-blend-overlay opacity-50" />
+      <div className="gif-overlay fixed inset-0 z-0 mix-blend-overlay opacity-50" 
+           style={{ 
+             backgroundImage: 'url("/overlay.gif")',
+             backgroundSize: 'cover',
+             backgroundPosition: 'center',
+             backgroundRepeat: 'no-repeat'
+           }} />
       
       {/* Hero Section */}
       <section className="relative min-h-screen w-full flex flex-col items-center justify-center px-6">
