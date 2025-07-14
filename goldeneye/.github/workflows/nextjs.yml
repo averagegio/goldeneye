@@ -2,7 +2,7 @@
 #
 # To get started with Next.js see: https://nextjs.org/docs/getting-started
 #
-name: Deploy Next.js to GitHub Pages
+name: Deploy Next.js site to Pages
 
 on:
   # Runs on pushes targeting the default branch
@@ -22,7 +22,7 @@ permissions:
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
 concurrency:
   group: "pages"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # Build job
@@ -31,27 +31,35 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: npm
+          cache: 'npm'
+          
+      - name: Install dependencies
+        run: |
+          rm -rf node_modules
+          rm -f package-lock.json
+          npm install
+          
       - name: Setup Pages
         uses: actions/configure-pages@v4
         with:
-          # Automatically inject basePath in your Next.js configuration file and disable
-          # server side image optimization (https://nextjs.org/docs/api-reference/next/image#unoptimized).
-          #
-          # You may remove this line if you want to manage the configuration yourself.
           static_site_generator: next
-      - name: Install dependencies
-        run: npm ci
+          
       - name: Build with Next.js
-        run: npm run build
+        env:
+          NEXT_PUBLIC_BASE_PATH: /goldeneye
+        run: |
+          npm run build
+          cp -r public/* out/
+          
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out
+          path: out
 
   # Deployment job
   deploy:
