@@ -99,6 +99,7 @@ export default function Home() {
   const [loginInputVisible, setLoginInputVisible] = useState(false);
   const [signupInput, setSignupInput] = useState('');
   const [signupInputVisible, setSignupInputVisible] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
   
   const trackingFeatures = [
     {
@@ -273,7 +274,224 @@ export default function Home() {
           0 0 32px rgba(255, 215, 0, 0.3);
       }
     }
+    @keyframes scaleIn {
+      0% {
+        transform: scale(0.8);
+        opacity: 0;
+      }
+      100% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+    .animate-scale-in {
+      animation: scaleIn 0.3s ease-out forwards;
+    }
   `;
+
+  // Checkout Card Component
+  const CheckoutCard = () => {
+    const [checkoutData, setCheckoutData] = useState({
+      name: '',
+      email: '',
+      cardNumber: '',
+      expiryDate: '',
+      cvv: ''
+    });
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const handleInputChange = (field, value) => {
+      setCheckoutData(prev => ({
+        ...prev,
+        [field]: value
+      }));
+    };
+
+    const handlePayment = async () => {
+      setIsProcessing(true);
+      
+      try {
+        const response = await fetch('/api/checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            agentId: loginUsername || 'guest',
+            name: checkoutData.name,
+            email: checkoutData.email,
+            paymentMethod: 'card',
+            cardNumber: checkoutData.cardNumber,
+            billingAddress: '',
+            city: '',
+            country: ''
+          })
+        });
+
+        const data = await response.json();
+        
+        if (data.success) {
+          alert(`✅ Payment Successful!\n\nTransaction ID: ${data.transactionId}\nWelcome to GoldenEye Premium!`);
+          setShowCheckout(false);
+          setCheckoutData({
+            name: '',
+            email: '',
+            cardNumber: '',
+            expiryDate: '',
+            cvv: ''
+          });
+        } else {
+          alert('❌ Payment failed: ' + data.message);
+        }
+      } catch (error) {
+        console.error('Payment error:', error);
+        alert('❌ Payment processing failed. Please try again.');
+      } finally {
+        setIsProcessing(false);
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+        <div className="bg-[#1a1a1a] border-2 border-[#333333] rounded-xl w-full max-w-md relative 
+                        shadow-2xl shadow-black/50 animate-scale-in">
+          {/* Close Button */}
+          <button
+            onClick={() => setShowCheckout(false)}
+            className="absolute top-4 right-4 text-[#8a8a8a] hover:text-[#c5c5c5] transition-colors z-10"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Header */}
+          <div className="p-6 border-b border-[#333333]">
+            <h2 className="text-xl text-[#c5c5c5] tracking-[0.2em] mb-2 text-center" 
+                style={{ fontFamily: 'var(--font-orbitron)' }}>
+              PREMIUM UPGRADE
+            </h2>
+            <div className="text-center">
+              <div className="text-2xl text-[#c5c5c5] font-bold mb-1">$7.00</div>
+              <div className="text-[#8a8a8a] text-sm">per month</div>
+            </div>
+          </div>
+
+          {/* Quick Features */}
+          <div className="px-6 py-4 bg-[#252525] border-b border-[#333333]">
+            <div className="grid grid-cols-2 gap-2 text-xs text-[#8a8a8a]">
+              <div>✓ Advanced tracking</div>
+              <div>✓ Ad-free experience</div>
+              <div>✓ Premium controls</div>
+              <div>✓ Priority support</div>
+            </div>
+          </div>
+
+          {/* Form */}
+          <div className="p-6 space-y-4">
+            <div>
+              <label className="block text-[#8a8a8a] text-sm mb-2">Agent Name</label>
+              <input
+                type="text"
+                value={checkoutData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                         focus:outline-none focus:border-[#555555] transition-colors"
+                placeholder="007"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[#8a8a8a] text-sm mb-2">Email</label>
+              <input
+                type="email"
+                value={checkoutData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                         focus:outline-none focus:border-[#555555] transition-colors"
+                placeholder="agent@goldeneye.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[#8a8a8a] text-sm mb-2">Card Number</label>
+              <input
+                type="text"
+                value={checkoutData.cardNumber}
+                onChange={(e) => handleInputChange('cardNumber', e.target.value)}
+                className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                         focus:outline-none focus:border-[#555555] transition-colors"
+                placeholder="1234 5678 9012 3456"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-[#8a8a8a] text-sm mb-2">Expiry</label>
+                <input
+                  type="text"
+                  value={checkoutData.expiryDate}
+                  onChange={(e) => handleInputChange('expiryDate', e.target.value)}
+                  className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                           focus:outline-none focus:border-[#555555] transition-colors"
+                  placeholder="MM/YY"
+                />
+              </div>
+              <div>
+                <label className="block text-[#8a8a8a] text-sm mb-2">CVV</label>
+                <input
+                  type="text"
+                  value={checkoutData.cvv}
+                  onChange={(e) => handleInputChange('cvv', e.target.value)}
+                  className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                           focus:outline-none focus:border-[#555555] transition-colors"
+                  placeholder="123"
+                />
+              </div>
+            </div>
+
+            {/* Security Notice */}
+            <div className="flex items-center gap-2 text-[#8a8a8a] text-xs py-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <span>Secured with AES-256 encryption</span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-3 pt-4">
+              <button
+                onClick={() => setShowCheckout(false)}
+                className="flex-1 py-3 px-4 bg-[#252525] text-[#8a8a8a] border border-[#333333] rounded
+                         hover:bg-[#333333] hover:text-[#c5c5c5] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handlePayment}
+                disabled={isProcessing}
+                className="flex-1 py-3 px-4 bg-[#c5c5c5] text-black rounded hover:bg-white 
+                         transition-colors disabled:opacity-50 disabled:cursor-not-allowed 
+                         flex items-center justify-center gap-2 font-medium"
+              >
+                {isProcessing ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Processing...
+                  </>
+                ) : (
+                  'Upgrade Now'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="min-h-screen relative bg-black">
@@ -658,6 +876,7 @@ export default function Home() {
                       ))}
                     </ul>
                     <button
+                      onClick={() => setShowCheckout(true)}
                       className="mt-8 w-full py-2 px-6 bg-[#252525] text-[#8a8a8a] border border-[#333333]
                                hover:bg-[#333333] hover:text-[#c5c5c5] transition-all duration-300 rounded tracking-wider
                                relative overflow-hidden group"
@@ -708,6 +927,9 @@ export default function Home() {
         {/* Bottom fade overlay */}
         <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent z-10"></div>
       </div>
+
+      {/* Checkout Card */}
+      {showCheckout && <CheckoutCard />}
     </div>
   );
 } 
