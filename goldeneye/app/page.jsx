@@ -94,12 +94,28 @@ export default function Home() {
   const [showLaunchButton, setShowLaunchButton] = useState(true);
   const [showDescription, setShowDescription] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
-  const [loginUsername, setLoginUsername] = useState('');
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginInputVisible, setLoginInputVisible] = useState(false);
+  const [loginDropdownOpen, setLoginDropdownOpen] = useState(false);
   const [signupInput, setSignupInput] = useState('');
   const [signupInputVisible, setSignupInputVisible] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
+  
+  // New authentication states
+  const [loginForm, setLoginForm] = useState({ username: '', password: '' });
+  const [signupForm, setSignupForm] = useState({ 
+    username: '', 
+    email: '', 
+    password: '', 
+    confirmPassword: '',
+    firstName: '',
+    lastName: '',
+    division: 'Intelligence',
+    clearanceLevel: 'CONFIDENTIAL'
+  });
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authError, setAuthError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [showProfileForm, setShowProfileForm] = useState(false);
   
   const trackingFeatures = [
     {
@@ -147,26 +163,38 @@ export default function Home() {
   };
 
   const handleLoginClick = () => {
-    setLoginInputVisible(!loginInputVisible);
+    setLoginDropdownOpen(!loginDropdownOpen);
     setSignupInputVisible(false); // Close signup input if open
-    // Clear login fields when closing
-    if (loginInputVisible) {
-      setLoginUsername('');
-      setLoginEmail('');
+    setAuthError(''); // Clear any previous errors
+    if (!loginDropdownOpen) {
+      setLoginForm({ username: '', password: '' }); // Reset form when opening
     }
   };
 
   const handleSignupClick = () => {
     setSignupInputVisible(!signupInputVisible);
-    setLoginInputVisible(false); // Close login input if open
+    setLoginDropdownOpen(false); // Close login dropdown if open
+    setAuthError(''); // Clear any previous errors
+    if (!signupInputVisible) {
+      setSignupForm({ 
+        username: '', 
+        email: '', 
+        password: '', 
+        confirmPassword: '',
+        firstName: '',
+        lastName: '',
+        division: 'Intelligence',
+        clearanceLevel: 'CONFIDENTIAL'
+      }); // Reset form when opening
+    }
   };
 
-  const handleLogin = async () => {
-    if (!loginUsername || !loginEmail) {
-      alert('Please enter both username and email');
-      return;
-    }
-
+  // Authentication handlers
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setAuthError('');
+    
     try {
       const response = await fetch('/api/auth', {
         method: 'POST',
@@ -174,63 +202,171 @@ export default function Home() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          agentId: loginUsername,
-          email: loginEmail,
-          password: '', // You can add password functionality later
-          operation: 'login'
-        })
+          action: 'login',
+          username: loginForm.username,
+          password: loginForm.password
+        }),
       });
-
+      
       const data = await response.json();
       
       if (data.success) {
-        console.log('Login successful:', data.agent);
-        // You can add redirect logic or state management here
-        setLoginUsername('');
-        setLoginEmail('');
-        setLoginInputVisible(false);
-        alert(`Welcome back, ${data.agent.name}!`);
+        setUser(data.user);
+        setIsAuthenticated(true);
+        setLoginDropdownOpen(false);
+        setLoginForm({ username: '', password: '' });
+        
+        // Store token in localStorage
+        localStorage.setItem('goldeneye_token', data.token);
+        
+        console.log('Login successful:', data.user);
       } else {
-        console.error('Login failed:', data.message);
-        alert('Login failed: ' + data.message);
+        setAuthError(data.message);
       }
     } catch (error) {
+      setAuthError('Login failed. Please try again.');
       console.error('Login error:', error);
-      alert('Login error: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSignup = async (codeName) => {
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setAuthError('');
+    
+    if (signupForm.password !== signupForm.confirmPassword) {
+      setAuthError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+    
     try {
-      const response = await fetch('/api/agents', {
+      const response = await fetch('/api/auth', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          name: codeName,
-          codeName: codeName,
-          specialties: ['surveillance', 'intelligence'],
-          clearanceLevel: 'standard'
-        })
+          action: 'register',
+          username: signupForm.username,
+          email: signupForm.email,
+          password: signupForm.password,
+          profileData: {
+            firstName: signupForm.firstName,
+            lastName: signupForm.lastName,
+            division: signupForm.division,
+            clearanceLevel: signupForm.clearanceLevel
+          }
+        }),
       });
-
+      
       const data = await response.json();
       
       if (data.success) {
-        console.log('Signup successful:', data.agent);
-        alert(`Agent registration initiated for ${codeName}. Status: ${data.backgroundCheck.status}`);
-        setSignupInput('');
+        setUser(data.user);
+        setIsAuthenticated(true);
         setSignupInputVisible(false);
+        setSignupForm({ 
+          username: '', 
+          email: '', 
+          password: '', 
+          confirmPassword: '',
+          firstName: '',
+          lastName: '',
+          division: 'Intelligence',
+          clearanceLevel: 'CONFIDENTIAL'
+        });
+        
+        // Store token in localStorage
+        localStorage.setItem('goldeneye_token', data.token);
+        
+        console.log('Signup successful:', data.user);
       } else {
-        console.error('Signup failed:', data.message);
-        alert('Signup failed: ' + data.message);
+        setAuthError(data.message);
       }
     } catch (error) {
+      setAuthError('Registration failed. Please try again.');
       console.error('Signup error:', error);
-      alert('Signup error: ' + error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const handleLogout = () => {
+    setUser(null);
+    setIsAuthenticated(false);
+    localStorage.removeItem('goldeneye_token');
+    console.log('Logged out successfully');
+  };
+
+  // Handle escape key to close popups
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setLoginDropdownOpen(false);
+        setSignupInputVisible(false);
+        setAuthError('');
+        setLoginForm({ username: '', password: '' });
+        setSignupForm({ 
+          username: '', 
+          email: '', 
+          password: '', 
+          confirmPassword: '',
+          firstName: '',
+          lastName: '',
+          division: 'Intelligence',
+          clearanceLevel: 'CONFIDENTIAL'
+        });
+      }
+    };
+
+    if (loginDropdownOpen || signupInputVisible) {
+      document.addEventListener('keydown', handleEscape);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [loginDropdownOpen, signupInputVisible]);
+
+  // Handle clicking outside popups to close them
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (loginDropdownOpen || signupInputVisible) {
+        // Check if click is outside the popup elements
+        if (!e.target.closest('.auth-popup') && !e.target.closest('.auth-button')) {
+          setLoginDropdownOpen(false);
+          setSignupInputVisible(false);
+          setAuthError('');
+          setLoginForm({ username: '', password: '' });
+          setSignupForm({ 
+            username: '', 
+            email: '', 
+            password: '', 
+            confirmPassword: '',
+            firstName: '',
+            lastName: '',
+            division: 'Intelligence',
+            clearanceLevel: 'CONFIDENTIAL'
+          });
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [loginDropdownOpen, signupInputVisible]);
+
+  const loginOptions = [
+    'Agent 007',
+    'Agent Q',
+    'Agent M',
+    'Field Operative'
+  ];
 
   const descriptionText = [
     "GoldenEye is a revolutionary new video app that is changing the way we interact with digital content. Instead of traditional scrolling or tapping, GoldenEye uses cutting-edge eye tracking technology to navigate through videos.",
@@ -274,224 +410,16 @@ export default function Home() {
           0 0 32px rgba(255, 215, 0, 0.3);
       }
     }
-    @keyframes scaleIn {
-      0% {
-        transform: scale(0.8);
-        opacity: 0;
-      }
-      100% {
-        transform: scale(1);
-        opacity: 1;
-      }
+
+    @keyframes scale-in {
+      from { transform: scale(0.9); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
     }
+
     .animate-scale-in {
-      animation: scaleIn 0.3s ease-out forwards;
+      animation: scale-in 0.3s ease-out forwards;
     }
   `;
-
-  // Checkout Card Component
-  const CheckoutCard = () => {
-    const [checkoutData, setCheckoutData] = useState({
-      name: '',
-      email: '',
-      cardNumber: '',
-      expiryDate: '',
-      cvv: ''
-    });
-    const [isProcessing, setIsProcessing] = useState(false);
-
-    const handleInputChange = (field, value) => {
-      setCheckoutData(prev => ({
-        ...prev,
-        [field]: value
-      }));
-    };
-
-    const handlePayment = async () => {
-      setIsProcessing(true);
-      
-      try {
-        const response = await fetch('/api/checkout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            agentId: loginUsername || 'guest',
-            name: checkoutData.name,
-            email: checkoutData.email,
-            paymentMethod: 'card',
-            cardNumber: checkoutData.cardNumber,
-            billingAddress: '',
-            city: '',
-            country: ''
-          })
-        });
-
-        const data = await response.json();
-        
-        if (data.success) {
-          alert(`✅ Payment Successful!\n\nTransaction ID: ${data.transactionId}\nWelcome to GoldenEye Premium!`);
-          setShowCheckout(false);
-          setCheckoutData({
-            name: '',
-            email: '',
-            cardNumber: '',
-            expiryDate: '',
-            cvv: ''
-          });
-        } else {
-          alert('❌ Payment failed: ' + data.message);
-        }
-      } catch (error) {
-        console.error('Payment error:', error);
-        alert('❌ Payment processing failed. Please try again.');
-      } finally {
-        setIsProcessing(false);
-      }
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-        <div className="bg-[#1a1a1a] border-2 border-[#333333] rounded-xl w-full max-w-md relative 
-                        shadow-2xl shadow-black/50 animate-scale-in">
-          {/* Close Button */}
-          <button
-            onClick={() => setShowCheckout(false)}
-            className="absolute top-4 right-4 text-[#8a8a8a] hover:text-[#c5c5c5] transition-colors z-10"
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-
-          {/* Header */}
-          <div className="p-6 border-b border-[#333333]">
-            <h2 className="text-xl text-[#c5c5c5] tracking-[0.2em] mb-2 text-center" 
-                style={{ fontFamily: 'var(--font-orbitron)' }}>
-              PREMIUM UPGRADE
-            </h2>
-            <div className="text-center">
-              <div className="text-2xl text-[#c5c5c5] font-bold mb-1">$7.00</div>
-              <div className="text-[#8a8a8a] text-sm">per month</div>
-            </div>
-          </div>
-
-          {/* Quick Features */}
-          <div className="px-6 py-4 bg-[#252525] border-b border-[#333333]">
-            <div className="grid grid-cols-2 gap-2 text-xs text-[#8a8a8a]">
-              <div>✓ Advanced tracking</div>
-              <div>✓ Ad-free experience</div>
-              <div>✓ Premium controls</div>
-              <div>✓ Priority support</div>
-            </div>
-          </div>
-
-          {/* Form */}
-          <div className="p-6 space-y-4">
-            <div>
-              <label className="block text-[#8a8a8a] text-sm mb-2">Agent Name</label>
-              <input
-                type="text"
-                value={checkoutData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
-                         focus:outline-none focus:border-[#555555] transition-colors"
-                placeholder="007"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[#8a8a8a] text-sm mb-2">Email</label>
-              <input
-                type="email"
-                value={checkoutData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
-                         focus:outline-none focus:border-[#555555] transition-colors"
-                placeholder="agent@goldeneye.com"
-              />
-            </div>
-
-            <div>
-              <label className="block text-[#8a8a8a] text-sm mb-2">Card Number</label>
-              <input
-                type="text"
-                value={checkoutData.cardNumber}
-                onChange={(e) => handleInputChange('cardNumber', e.target.value)}
-                className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
-                         focus:outline-none focus:border-[#555555] transition-colors"
-                placeholder="1234 5678 9012 3456"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-[#8a8a8a] text-sm mb-2">Expiry</label>
-                <input
-                  type="text"
-                  value={checkoutData.expiryDate}
-                  onChange={(e) => handleInputChange('expiryDate', e.target.value)}
-                  className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
-                           focus:outline-none focus:border-[#555555] transition-colors"
-                  placeholder="MM/YY"
-                />
-              </div>
-              <div>
-                <label className="block text-[#8a8a8a] text-sm mb-2">CVV</label>
-                <input
-                  type="text"
-                  value={checkoutData.cvv}
-                  onChange={(e) => handleInputChange('cvv', e.target.value)}
-                  className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
-                           focus:outline-none focus:border-[#555555] transition-colors"
-                  placeholder="123"
-                />
-              </div>
-            </div>
-
-            {/* Security Notice */}
-            <div className="flex items-center gap-2 text-[#8a8a8a] text-xs py-2">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-              </svg>
-              <span>Secured with AES-256 encryption</span>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-3 pt-4">
-              <button
-                onClick={() => setShowCheckout(false)}
-                className="flex-1 py-3 px-4 bg-[#252525] text-[#8a8a8a] border border-[#333333] rounded
-                         hover:bg-[#333333] hover:text-[#c5c5c5] transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handlePayment}
-                disabled={isProcessing}
-                className="flex-1 py-3 px-4 bg-[#c5c5c5] text-black rounded hover:bg-white 
-                         transition-colors disabled:opacity-50 disabled:cursor-not-allowed 
-                         flex items-center justify-center gap-2 font-medium"
-              >
-                {isProcessing ? (
-                  <>
-                    <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Processing...
-                  </>
-                ) : (
-                  'Upgrade Now'
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="min-h-screen relative bg-black">
@@ -637,104 +565,246 @@ export default function Home() {
 
             {/* Authentication Section */}
             <div className="flex flex-col items-center gap-4 mb-8 relative">
-              <div className="flex justify-center gap-4">
-                <div className="relative">
-                  <button
-                    onClick={handleLoginClick}
-                    className="spy-text py-2 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
-                             hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5]
-                             transition-all duration-300 tracking-[0.2em] text-sm rounded"
-                    style={{ fontFamily: 'var(--font-spy)' }}
-                  >
-                    LOGIN
-                  </button>
-                                     {loginInputVisible && (
-                     <div className="absolute top-full left-0 mt-2 w-80 bg-[#1a1a1a] border border-[#333333] rounded-md shadow-lg overflow-hidden p-3 z-50">
-                       <div className="space-y-3">
-                         <div>
-                           <label className="block text-[#8a8a8a] text-xs tracking-wider mb-1" style={{ fontFamily: 'var(--font-spy)' }}>
-                             USERNAME
-                           </label>
-                                                        <input
-                               type="text"
-                               value={loginUsername}
-                               onChange={(e) => setLoginUsername(e.target.value)}
-                               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                               placeholder="Enter username..."
-                               className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-1.5 
-                                        focus:outline-none focus:border-[#444444] text-sm tracking-wider
-                                        placeholder-[#8a8a8a]"
-                               style={{ fontFamily: 'var(--font-spy)' }}
-                             />
-                         </div>
-                         <div>
-                           <label className="block text-[#8a8a8a] text-xs tracking-wider mb-1" style={{ fontFamily: 'var(--font-spy)' }}>
-                             EMAIL
-                           </label>
-                                                        <input
-                               type="email"
-                               value={loginEmail}
-                               onChange={(e) => setLoginEmail(e.target.value)}
-                               onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-                               placeholder="Enter email..."
-                               className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-1.5 
-                                        focus:outline-none focus:border-[#444444] text-sm tracking-wider
-                                        placeholder-[#8a8a8a]"
-                               style={{ fontFamily: 'var(--font-spy)' }}
-                             />
-                         </div>
-                         <div className="flex justify-end pt-2">
-                           <button
-                             onClick={handleLogin}
-                             className="bg-[#252525] text-[#8a8a8a] px-4 py-1.5 rounded
-                                      hover:bg-[#333333] hover:text-[#c5c5c5] transition-colors duration-300
-                                      border border-[#333333] text-sm tracking-wider"
-                             style={{ fontFamily: 'var(--font-spy)' }}
-                           >
-                             LOGIN →
-                           </button>
-                         </div>
-                       </div>
-                     </div>
-                   )}
-                </div>
-                <div className="relative">
-                  <button
-                    onClick={handleSignupClick}
-                    className="spy-text py-2 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
-                             hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5]
-                             transition-all duration-300 tracking-[0.2em] text-sm rounded"
-                    style={{ fontFamily: 'var(--font-spy)' }}
-                  >
-                    SIGN UP
-                  </button>
-                  {signupInputVisible && (
-                    <div className="absolute top-full left-0 mt-2 w-64 bg-[#1a1a1a] border border-[#333333] rounded-md shadow-lg overflow-hidden p-3 z-50">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={signupInput}
-                          onChange={(e) => setSignupInput(e.target.value)}
-                          placeholder="Enter codename..."
-                          className="flex-1 bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-1.5 
-                                   focus:outline-none focus:border-[#444444] text-sm tracking-wider
-                                   placeholder-[#8a8a8a]"
-                          style={{ fontFamily: 'var(--font-spy)' }}
-                        />
+              {!isAuthenticated ? (
+                <div className="flex justify-center gap-4">
+                  <div className="relative">
+                    <button
+                      onClick={handleLoginClick}
+                      className="auth-button spy-text py-2 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
+                               hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5]
+                               transition-all duration-300 tracking-[0.2em] text-sm rounded"
+                      style={{ fontFamily: 'var(--font-spy)' }}
+                    >
+                      LOGIN
+                    </button>
+                    {loginDropdownOpen && (
+                      <div className="auth-popup absolute top-full left-0 mt-2 w-80 bg-[#1a1a1a] border border-[#333333] rounded-md shadow-lg overflow-hidden p-4 z-50">
                         <button
-                          onClick={() => handleSignup(signupInput)}
-                          className="bg-[#252525] text-[#8a8a8a] px-3 py-1.5 rounded
-                                   hover:bg-[#333333] hover:text-[#c5c5c5] transition-colors duration-300
-                                   border border-[#333333] text-sm tracking-wider"
-                          style={{ fontFamily: 'var(--font-spy)' }}
+                          onClick={() => {
+                            setLoginDropdownOpen(false);
+                            setAuthError('');
+                            setLoginForm({ username: '', password: '' });
+                          }}
+                          className="absolute top-2 right-2 text-[#8a8a8a] hover:text-[#c5c5c5] transition-colors z-10"
                         >
-                          →
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
                         </button>
+                        <form onSubmit={handleLogin} className="space-y-3">
+                          <div>
+                            <input
+                              type="text"
+                              value={loginForm.username}
+                              onChange={(e) => setLoginForm({...loginForm, username: e.target.value})}
+                              placeholder="Username"
+                              className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider
+                                       placeholder-[#8a8a8a]"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="password"
+                              value={loginForm.password}
+                              onChange={(e) => setLoginForm({...loginForm, password: e.target.value})}
+                              placeholder="Password"
+                              className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider
+                                       placeholder-[#8a8a8a]"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                              required
+                            />
+                          </div>
+                          {authError && (
+                            <div className="text-red-500 text-xs text-center">{authError}</div>
+                          )}
+                          <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-[#252525] text-[#8a8a8a] py-2 rounded
+                                     hover:bg-[#333333] hover:text-[#c5c5c5] transition-colors duration-300
+                                     border border-[#333333] text-sm tracking-wider disabled:opacity-50"
+                            style={{ fontFamily: 'var(--font-spy)' }}
+                          >
+                            {isLoading ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
+                          </button>
+                        </form>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
+                  <div className="relative">
+                    <button
+                      onClick={handleSignupClick}
+                      className="auth-button spy-text py-2 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
+                               hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5]
+                               transition-all duration-300 tracking-[0.2em] text-sm rounded"
+                      style={{ fontFamily: 'var(--font-spy)' }}
+                    >
+                      SIGN UP
+                    </button>
+                    {signupInputVisible && (
+                      <div className="auth-popup absolute top-full left-0 mt-2 w-96 bg-[#1a1a1a] border border-[#333333] rounded-md shadow-lg overflow-hidden p-4 z-50">
+                        <button
+                          onClick={() => {
+                            setSignupInputVisible(false);
+                            setAuthError('');
+                            setSignupForm({ 
+                              username: '', 
+                              email: '', 
+                              password: '', 
+                              confirmPassword: '',
+                              firstName: '',
+                              lastName: '',
+                              division: 'Intelligence',
+                              clearanceLevel: 'CONFIDENTIAL'
+                            });
+                          }}
+                          className="absolute top-2 right-2 text-[#8a8a8a] hover:text-[#c5c5c5] transition-colors z-10"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                        <form onSubmit={handleSignup} className="space-y-3">
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="text"
+                              value={signupForm.firstName}
+                              onChange={(e) => setSignupForm({...signupForm, firstName: e.target.value})}
+                              placeholder="First Name"
+                              className="bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider
+                                       placeholder-[#8a8a8a]"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                            />
+                            <input
+                              type="text"
+                              value={signupForm.lastName}
+                              onChange={(e) => setSignupForm({...signupForm, lastName: e.target.value})}
+                              placeholder="Last Name"
+                              className="bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider
+                                       placeholder-[#8a8a8a]"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="text"
+                              value={signupForm.username}
+                              onChange={(e) => setSignupForm({...signupForm, username: e.target.value})}
+                              placeholder="Username"
+                              className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider
+                                       placeholder-[#8a8a8a]"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                              required
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="email"
+                              value={signupForm.email}
+                              onChange={(e) => setSignupForm({...signupForm, email: e.target.value})}
+                              placeholder="Email"
+                              className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider
+                                       placeholder-[#8a8a8a]"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                              required
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              type="password"
+                              value={signupForm.password}
+                              onChange={(e) => setSignupForm({...signupForm, password: e.target.value})}
+                              placeholder="Password"
+                              className="bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider
+                                       placeholder-[#8a8a8a]"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                              required
+                            />
+                            <input
+                              type="password"
+                              value={signupForm.confirmPassword}
+                              onChange={(e) => setSignupForm({...signupForm, confirmPassword: e.target.value})}
+                              placeholder="Confirm Password"
+                              className="bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider
+                                       placeholder-[#8a8a8a]"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                              required
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2">
+                            <select
+                              value={signupForm.division}
+                              onChange={(e) => setSignupForm({...signupForm, division: e.target.value})}
+                              className="bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                            >
+                              <option value="Intelligence">Intelligence</option>
+                              <option value="Operations">Operations</option>
+                              <option value="Analysis">Analysis</option>
+                              <option value="Tech Support">Tech Support</option>
+                              <option value="Field Agent">Field Agent</option>
+                            </select>
+                            <select
+                              value={signupForm.clearanceLevel}
+                              onChange={(e) => setSignupForm({...signupForm, clearanceLevel: e.target.value})}
+                              className="bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-3 py-2 
+                                       focus:outline-none focus:border-[#444444] text-sm tracking-wider"
+                              style={{ fontFamily: 'var(--font-spy)' }}
+                            >
+                              <option value="CONFIDENTIAL">CONFIDENTIAL</option>
+                              <option value="SECRET">SECRET</option>
+                              <option value="TOP SECRET">TOP SECRET</option>
+                            </select>
+                          </div>
+                          {authError && (
+                            <div className="text-red-500 text-xs text-center">{authError}</div>
+                          )}
+                          <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-[#252525] text-[#8a8a8a] py-2 rounded
+                                     hover:bg-[#333333] hover:text-[#c5c5c5] transition-colors duration-300
+                                     border border-[#333333] text-sm tracking-wider disabled:opacity-50"
+                            style={{ fontFamily: 'var(--font-spy)' }}
+                          >
+                            {isLoading ? 'REGISTERING...' : 'CREATE AGENT'}
+                          </button>
+                        </form>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="flex items-center gap-4">
+                  <div className="bg-[#1a1a1a] border border-[#333333] rounded-lg p-4 text-center">
+                    <h3 className="text-[#c5c5c5] text-lg tracking-wider mb-2" style={{ fontFamily: 'var(--font-spy)' }}>
+                      Welcome, Agent {user.profile.agentCode}
+                    </h3>
+                    <p className="text-[#8a8a8a] text-sm mb-1">{user.username}</p>
+                    <p className="text-[#8a8a8a] text-xs">{user.profile.division} • {user.profile.clearanceLevel}</p>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    className="spy-text py-2 px-4 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
+                             hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5]
+                             transition-all duration-300 tracking-[0.2em] text-sm rounded"
+                    style={{ fontFamily: 'var(--font-spy)' }}
+                  >
+                    LOGOUT
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Feature Demo Section */}
@@ -890,6 +960,83 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Checkout Modal */}
+            {showCheckout && (
+              <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div className="bg-[#1a1a1a] border-2 border-[#333333] rounded-xl w-full max-w-md relative 
+                                shadow-2xl shadow-black/50 animate-scale-in">
+                  <button
+                    onClick={() => setShowCheckout(false)}
+                    className="absolute top-4 right-4 text-[#8a8a8a] hover:text-[#c5c5c5] transition-colors z-10"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+
+                  <div className="p-6 border-b border-[#333333]">
+                    <h2 className="text-xl text-[#c5c5c5] tracking-[0.2em] mb-2 text-center" 
+                        style={{ fontFamily: 'Orbitron, sans-serif' }}>
+                      PREMIUM UPGRADE
+                    </h2>
+                    <div className="text-center">
+                      <div className="text-2xl text-[#c5c5c5] font-bold mb-1">$7.00</div>
+                      <div className="text-[#8a8a8a] text-sm">per month</div>
+                    </div>
+                  </div>
+
+                  <div className="px-6 py-4 bg-[#252525] border-b border-[#333333]">
+                    <div className="grid grid-cols-2 gap-2 text-xs text-[#8a8a8a]">
+                      <div>✓ Advanced tracking</div>
+                      <div>✓ Ad-free experience</div>
+                      <div>✓ Premium controls</div>
+                      <div>✓ Priority support</div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 space-y-4">
+                    <div className="space-y-3">
+                      <input
+                        type="text"
+                        placeholder="Card Number"
+                        className="w-full bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-4 py-2 
+                                 focus:outline-none focus:border-[#444444] text-sm tracking-wider"
+                        style={{ fontFamily: 'Orbitron, sans-serif' }}
+                      />
+                      <div className="flex gap-3">
+                        <input
+                          type="text"
+                          placeholder="MM/YY"
+                          className="flex-1 bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-4 py-2 
+                                   focus:outline-none focus:border-[#444444] text-sm tracking-wider"
+                          style={{ fontFamily: 'Orbitron, sans-serif' }}
+                        />
+                        <input
+                          type="text"
+                          placeholder="CVV"
+                          className="flex-1 bg-[#252525] text-[#c5c5c5] border border-[#333333] rounded px-4 py-2 
+                                   focus:outline-none focus:border-[#444444] text-sm tracking-wider"
+                          style={{ fontFamily: 'Orbitron, sans-serif' }}
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        console.log('Processing payment...');
+                        setShowCheckout(false);
+                      }}
+                      className="w-full bg-[#333333] text-[#c5c5c5] py-3 rounded hover:bg-[#444444] 
+                               transition-colors duration-300 tracking-wider font-medium"
+                      style={{ fontFamily: 'Orbitron, sans-serif' }}
+                    >
+                      COMPLETE PURCHASE
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Footer Section */}
             <footer className="w-full mt-20 border-t border-[#333333] bg-black/40 backdrop-blur-sm">
               <div className="max-w-6xl mx-auto px-4 py-8">
@@ -927,9 +1074,6 @@ export default function Home() {
         {/* Bottom fade overlay */}
         <div className="fixed bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black to-transparent z-10"></div>
       </div>
-
-      {/* Checkout Card */}
-      {showCheckout && <CheckoutCard />}
     </div>
   );
 } 

@@ -1,0 +1,13 @@
+{
+  "name": "goldeneye-root",
+  "private": true,
+  "workspaces": [
+    "goldeneye"
+  ],
+  "scripts": {
+    "dev": "cd goldeneye && npm run dev",
+    "build": "cd goldeneye && npm run build",
+    "start": "cd goldeneye && npm run start",
+    "lint": "cd goldeneye && npm run lint"
+  }
+} 
