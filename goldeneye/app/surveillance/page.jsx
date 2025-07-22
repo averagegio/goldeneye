@@ -141,7 +141,7 @@ export default function Surveillance() {
             <div className="w-full h-full flex items-center justify-center text-gray-400 px-4">
               <div className="text-center">
                 <div className="text-4xl sm:text-6xl mb-4">📷</div>
-                <p className="text-lg sm:text-xl">Click "START CAMERA" to begin surveillance</p>
+                <p className="text-lg sm:text-xl">Click &quot;START CAMERA&quot; to begin surveillance</p>
                 <p className="text-xs sm:text-sm mt-2">Camera access required</p>
               </div>
             </div>
