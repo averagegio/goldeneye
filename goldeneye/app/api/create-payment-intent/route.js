@@ -1,10 +1,22 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+// Initialize Stripe only if the secret key is available
+const stripe = process.env.STRIPE_SECRET_KEY ? new Stripe(process.env.STRIPE_SECRET_KEY) : null;
 
 export async function POST(request) {
   try {
+    // Check if Stripe is properly initialized
+    if (!stripe) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          error: 'Stripe configuration missing' 
+        },
+        { status: 500 }
+      );
+    }
+
     const { amount, currency = 'usd', planName } = await request.json();
 
     // Create a PaymentIntent with the order amount and currency
