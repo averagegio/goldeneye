@@ -9,5 +9,8 @@
     "build": "cd goldeneye && npm run build",
     "start": "cd goldeneye && npm run start",
     "lint": "cd goldeneye && npm run lint"
+  },
+  "dependencies": {
+    "@stripe/react-stripe-js": "^3.7.0"
   }
-} 
+}

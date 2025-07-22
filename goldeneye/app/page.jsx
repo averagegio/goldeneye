@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
+import Navigation from './components/Navigation';
 
 const TypewriterText = ({ text, speed = 30, delay = 0, isActivated, onComplete }) => {
   const [displayText, setDisplayText] = useState('');
@@ -95,11 +96,10 @@ export default function Home() {
   const [showDescription, setShowDescription] = useState(true);
   const [currentPage, setCurrentPage] = useState(0);
   const [loginDropdownOpen, setLoginDropdownOpen] = useState(false);
-  const [signupInput, setSignupInput] = useState('');
   const [signupInputVisible, setSignupInputVisible] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   
-  // New authentication states
+  // Authentication state
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [signupForm, setSignupForm] = useState({ 
     username: '', 
@@ -164,7 +164,6 @@ export default function Home() {
 
   const handleLoginClick = () => {
     setLoginDropdownOpen(!loginDropdownOpen);
-    setSignupInputVisible(false); // Close signup input if open
     setAuthError(''); // Clear any previous errors
     if (!loginDropdownOpen) {
       setLoginForm({ username: '', password: '' }); // Reset form when opening
@@ -187,6 +186,34 @@ export default function Home() {
         clearanceLevel: 'CONFIDENTIAL'
       }); // Reset form when opening
     }
+  };
+
+  const handleQuickSignup = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setAuthError('');
+    
+    if (signupForm.password !== signupForm.confirmPassword) {
+      setAuthError('Passwords do not match');
+      setIsLoading(false);
+      return;
+    }
+    
+    // Save the quick signup data to localStorage
+    const quickSignupData = {
+      username: signupForm.username,
+      email: signupForm.email,
+      password: signupForm.password,
+      firstName: signupForm.firstName,
+      lastName: signupForm.lastName,
+      division: signupForm.division,
+      clearanceLevel: signupForm.clearanceLevel
+    };
+    
+    localStorage.setItem('quickSignupData', JSON.stringify(quickSignupData));
+    
+    // Redirect to full signup page
+    window.location.href = '/signup';
   };
 
   // Authentication handlers
@@ -231,68 +258,7 @@ export default function Home() {
     }
   };
 
-  const handleSignup = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setAuthError('');
-    
-    if (signupForm.password !== signupForm.confirmPassword) {
-      setAuthError('Passwords do not match');
-      setIsLoading(false);
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'register',
-          username: signupForm.username,
-          email: signupForm.email,
-          password: signupForm.password,
-          profileData: {
-            firstName: signupForm.firstName,
-            lastName: signupForm.lastName,
-            division: signupForm.division,
-            clearanceLevel: signupForm.clearanceLevel
-          }
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setUser(data.user);
-        setIsAuthenticated(true);
-        setSignupInputVisible(false);
-        setSignupForm({ 
-          username: '', 
-          email: '', 
-          password: '', 
-          confirmPassword: '',
-          firstName: '',
-          lastName: '',
-          division: 'Intelligence',
-          clearanceLevel: 'CONFIDENTIAL'
-        });
-        
-        // Store token in localStorage
-        localStorage.setItem('goldeneye_token', data.token);
-        
-        console.log('Signup successful:', data.user);
-      } else {
-        setAuthError(data.message);
-      }
-    } catch (error) {
-      setAuthError('Registration failed. Please try again.');
-      console.error('Signup error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
 
   const handleLogout = () => {
     setUser(null);
@@ -423,6 +389,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen relative bg-black">
+      <Navigation />
       <style jsx>{styles}</style>
       <div className="fixed inset-0 flex items-center justify-center overflow-hidden z-0">
         <Image
@@ -450,7 +417,7 @@ export default function Home() {
           {/* First Section */}
           <section className="min-h-screen flex flex-col items-center pt-20 space-y-8 px-4">
             <div className="text-center">
-              <h1 className="text-7xl font-bold text-white tracking-[0.2em] mb-4"
+              <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white tracking-[0.1em] sm:tracking-[0.2em] mb-4"
                   style={{
                     fontFamily: 'Orbitron, sans-serif',
                     animation: 'goldenGlow 3s ease-in-out infinite',
@@ -460,38 +427,41 @@ export default function Home() {
                 GOLDENEYE
               </h1>
               
-              <p className="text-xl tracking-[0.3em] text-[#8a8a8a] mb-8"
+              <p className="text-lg sm:text-xl tracking-[0.2em] sm:tracking-[0.3em] text-[#8a8a8a] mb-8"
                  style={{ fontFamily: 'Orbitron, sans-serif' }}>
                 Intelligence Division
               </p>
 
               {showLaunchButton && (
-                <div className="relative w-full">
-                  <button
-                    onClick={handleLaunch}
-                    className="spy-text py-2 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
-                             hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5] 
-                             transition-all duration-300 tracking-[0.2em] text-base
-                             flex items-center gap-3 group rounded absolute left-8"
-                    style={{ fontFamily: 'var(--font-orbitron)' }}
-                  >
-                    <span className="w-3 h-3 rounded-full bg-[#333333] group-hover:bg-[#c5c5c5] transition-colors duration-300"></span>
-                    INITIALIZE
-                    <span className="w-3 h-3 rounded-full bg-[#333333] group-hover:bg-[#c5c5c5] transition-colors duration-300"></span>
-                  </button>
-                  
-                  <button
-                    onClick={() => window.location.href = '#features'}
-                    className="spy-text py-2 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
-                             hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5] 
-                             transition-all duration-300 tracking-[0.2em] text-base
-                             flex items-center gap-3 group rounded absolute right-8"
-                    style={{ fontFamily: 'var(--font-orbitron)' }}
-                  >
-                    <span className="w-3 h-3 rounded-full bg-[#333333] group-hover:bg-[#c5c5c5] transition-colors duration-300"></span>
-                    EXPLORE
-                    <span className="w-3 h-3 rounded-full bg-[#333333] group-hover:bg-[#c5c5c5] transition-colors duration-300"></span>
-                  </button>
+                <div className="w-full max-w-md mx-auto">
+                  {/* Mobile: Stacked Buttons, Desktop: Side by Side */}
+                  <div className="flex flex-col sm:flex-row gap-4 sm:justify-between">
+                    <button
+                      onClick={handleLaunch}
+                      className="spy-text py-3 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
+                               hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5] 
+                               transition-all duration-300 tracking-[0.1em] sm:tracking-[0.2em] text-sm sm:text-base
+                               flex items-center justify-center gap-3 group rounded"
+                      style={{ fontFamily: 'var(--font-orbitron)' }}
+                    >
+                      <span className="w-3 h-3 rounded-full bg-[#333333] group-hover:bg-[#c5c5c5] transition-colors duration-300"></span>
+                      INITIALIZE
+                      <span className="w-3 h-3 rounded-full bg-[#333333] group-hover:bg-[#c5c5c5] transition-colors duration-300"></span>
+                    </button>
+                    
+                    <button
+                      onClick={() => window.location.href = '/surveillance'}
+                      className="spy-text py-3 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
+                               hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5] 
+                               transition-all duration-300 tracking-[0.1em] sm:tracking-[0.2em] text-sm sm:text-base
+                               flex items-center justify-center gap-3 group rounded"
+                      style={{ fontFamily: 'var(--font-orbitron)' }}
+                    >
+                      <span className="w-3 h-3 rounded-full bg-[#333333] group-hover:bg-[#c5c5c5] transition-colors duration-300"></span>
+                      EXPLORE
+                      <span className="w-3 h-3 rounded-full bg-[#333333] group-hover:bg-[#c5c5c5] transition-colors duration-300"></span>
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
@@ -564,21 +534,22 @@ export default function Home() {
             </div>
 
             {/* Authentication Section */}
-            <div className="flex flex-col items-center gap-4 mb-8 relative">
+            <div className="flex flex-col items-center gap-4 mb-8 relative w-full max-w-md mx-auto">
               {!isAuthenticated ? (
-                <div className="flex justify-center gap-4">
-                  <div className="relative">
+                <div className="flex flex-col sm:flex-row justify-center gap-4 w-full">
+                  <div className="relative flex-1 sm:flex-none">
                     <button
                       onClick={handleLoginClick}
-                      className="auth-button spy-text py-2 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
+                      className="auth-button spy-text py-3 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
                                hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5]
-                               transition-all duration-300 tracking-[0.2em] text-sm rounded"
+                               transition-all duration-300 tracking-[0.1em] sm:tracking-[0.2em] text-sm rounded
+                               w-full sm:w-auto"
                       style={{ fontFamily: 'var(--font-spy)' }}
                     >
                       LOGIN
                     </button>
                     {loginDropdownOpen && (
-                      <div className="auth-popup absolute top-full left-0 mt-2 w-80 bg-[#1a1a1a] border border-[#333333] rounded-md shadow-lg overflow-hidden p-4 z-50">
+                      <div className="auth-popup absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-80 bg-[#1a1a1a] border border-[#333333] rounded-md shadow-lg overflow-hidden p-4 z-50">
                         <button
                           onClick={() => {
                             setLoginDropdownOpen(false);
@@ -635,18 +606,19 @@ export default function Home() {
                       </div>
                     )}
                   </div>
-                  <div className="relative">
+                  <div className="relative flex-1 sm:flex-none">
                     <button
                       onClick={handleSignupClick}
-                      className="auth-button spy-text py-2 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
+                      className="auth-button spy-text py-3 px-6 bg-[#1a1a1a] text-[#8a8a8a] border border-[#333333]
                                hover:bg-[#252525] hover:border-[#444444] hover:text-[#c5c5c5]
-                               transition-all duration-300 tracking-[0.2em] text-sm rounded"
+                               transition-all duration-300 tracking-[0.1em] sm:tracking-[0.2em] text-sm rounded
+                               w-full sm:w-auto"
                       style={{ fontFamily: 'var(--font-spy)' }}
                     >
                       SIGN UP
                     </button>
                     {signupInputVisible && (
-                      <div className="auth-popup absolute top-full left-0 mt-2 w-96 bg-[#1a1a1a] border border-[#333333] rounded-md shadow-lg overflow-hidden p-4 z-50">
+                      <div className="auth-popup absolute top-full left-0 sm:left-auto sm:right-0 mt-2 w-80 sm:w-96 bg-[#1a1a1a] border border-[#333333] rounded-md shadow-lg overflow-hidden p-4 z-50">
                         <button
                           onClick={() => {
                             setSignupInputVisible(false);
@@ -668,8 +640,8 @@ export default function Home() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
                         </button>
-                        <form onSubmit={handleSignup} className="space-y-3">
-                          <div className="grid grid-cols-2 gap-2">
+                        <form onSubmit={handleQuickSignup} className="space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <input
                               type="text"
                               value={signupForm.firstName}
@@ -717,7 +689,7 @@ export default function Home() {
                               required
                             />
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <input
                               type="password"
                               value={signupForm.password}
@@ -741,7 +713,7 @@ export default function Home() {
                               required
                             />
                           </div>
-                          <div className="grid grid-cols-2 gap-2">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <select
                               value={signupForm.division}
                               onChange={(e) => setSignupForm({...signupForm, division: e.target.value})}
@@ -778,7 +750,7 @@ export default function Home() {
                                      border border-[#333333] text-sm tracking-wider disabled:opacity-50"
                             style={{ fontFamily: 'var(--font-spy)' }}
                           >
-                            {isLoading ? 'REGISTERING...' : 'CREATE AGENT'}
+                            {isLoading ? 'SAVING...' : 'CREATE AGENT'}
                           </button>
                         </form>
                       </div>
@@ -869,13 +841,13 @@ export default function Home() {
             </div>
 
             {/* Subscription Plans */}
-            <div className="mt-16 max-w-4xl mx-auto">
-              <h2 className="text-2xl text-[#c5c5c5] tracking-[0.2em] mb-8 text-center"
+            <div className="mt-16 max-w-4xl mx-auto px-4">
+              <h2 className="text-xl sm:text-2xl text-[#c5c5c5] tracking-[0.1em] sm:tracking-[0.2em] mb-8 text-center"
                   style={{ fontFamily: 'var(--font-orbitron)' }}>
                 SUBSCRIPTIONS
               </h2>
               
-              <div className="flex flex-col md:flex-row gap-8 justify-center px-4">
+              <div className="flex flex-col lg:flex-row gap-6 lg:gap-8 justify-center items-center lg:items-stretch">
                 {/* Free Plan */}
                 <div className="flex-1 max-w-sm bg-[#1a1a1a] border border-[#333333] rounded-lg overflow-hidden transform transition-transform duration-300 hover:scale-105">
                   <div className="p-6">
@@ -900,6 +872,7 @@ export default function Home() {
                       ))}
                     </ul>
                     <button
+                      onClick={() => window.location.href = '/login'}
                       className="mt-8 w-full py-2 px-6 bg-[#252525] text-[#8a8a8a] border border-[#333333]
                                hover:bg-[#333333] hover:text-[#c5c5c5] transition-all duration-300 rounded tracking-wider"
                       style={{ fontFamily: 'var(--font-spy)' }}
@@ -963,8 +936,8 @@ export default function Home() {
             {/* Checkout Modal */}
             {showCheckout && (
               <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                <div className="bg-[#1a1a1a] border-2 border-[#333333] rounded-xl w-full max-w-md relative 
-                                shadow-2xl shadow-black/50 animate-scale-in">
+                <div className="bg-[#1a1a1a] border-2 border-[#333333] rounded-xl w-full max-w-sm sm:max-w-md relative 
+                                shadow-2xl shadow-black/50 animate-scale-in max-h-[90vh] overflow-y-auto">
                   <button
                     onClick={() => setShowCheckout(false)}
                     className="absolute top-4 right-4 text-[#8a8a8a] hover:text-[#c5c5c5] transition-colors z-10"
@@ -1003,7 +976,7 @@ export default function Home() {
                                  focus:outline-none focus:border-[#444444] text-sm tracking-wider"
                         style={{ fontFamily: 'Orbitron, sans-serif' }}
                       />
-                      <div className="flex gap-3">
+                      <div className="flex flex-col sm:flex-row gap-3">
                         <input
                           type="text"
                           placeholder="MM/YY"
@@ -1023,8 +996,8 @@ export default function Home() {
 
                     <button
                       onClick={() => {
-                        console.log('Processing payment...');
                         setShowCheckout(false);
+                        window.location.href = '/checkout';
                       }}
                       className="w-full bg-[#333333] text-[#c5c5c5] py-3 rounded hover:bg-[#444444] 
                                transition-colors duration-300 tracking-wider font-medium"

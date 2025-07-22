@@ -209,10 +209,7 @@ UserSchema.methods.toJSON = function() {
   return user;
 };
 
-// Indexes for performance
-UserSchema.index({ username: 1 });
-UserSchema.index({ email: 1 });
-UserSchema.index({ 'profile.agentCode': 1 });
+// Additional indexes for performance (unique fields already have indexes)
 UserSchema.index({ 'subscription.status': 1 });
 UserSchema.index({ isActive: 1 });
 
